@@ -49,6 +49,15 @@ pub fn native(args: &Args) -> Command {
   cmd.env("TAURI_WEBVIEW_AUTOMATION", "true"); // 2.x
   cmd.arg(format!("--port={}", args.native_port));
   cmd.arg(format!("--host={}", args.native_host));
+
+  // Prevent msedgedriver and its child processes (WebView2) from
+  // creating visible console windows during testing.
+  #[cfg(windows)]
+  {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+  }
+
   cmd
 }
 
