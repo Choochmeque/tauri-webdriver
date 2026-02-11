@@ -12,12 +12,12 @@ OPTIONS:
   --port NUMBER           Sets the tauri-driver intermediary port (default: 4444)
   --native-port NUMBER    Sets the port of the underlying WebDriver (default: 4445)
   --native-host HOST      Sets the host of the underlying WebDriver (default: 127.0.0.1)
-  --native-driver PATH    Sets the path to the native WebDriver binary (Linux/Windows only)
+  --native-driver PATH    Sets the path to the native WebDriver binary (Linux only)
 
 PLATFORM NOTES:
-  macOS:   Uses tauri-plugin-webdriver - the Tauri app must have the plugin installed
+  macOS:   Uses tauri-plugin-webdriver (embedded in app)
+  Windows: Uses tauri-plugin-webdriver (embedded in app)
   Linux:   Uses WebKitWebDriver
-  Windows: Uses msedgedriver
 ";
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub struct Args {
     pub port: u16,
     pub native_port: u16,
     pub native_host: String,
-    /// Path to native WebDriver binary (Linux/Windows only, ignored on macOS)
+    /// Path to native WebDriver binary (Linux only, ignored on macOS/Windows)
     #[allow(dead_code)]
     pub native_driver: Option<PathBuf>,
 }

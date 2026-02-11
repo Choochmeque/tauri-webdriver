@@ -18,39 +18,35 @@ use hyper_util::{
     rt::{TokioExecutor, TokioIo},
     server::conn::auto,
 };
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 use serde::Deserialize;
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 use serde_json::{json, Map, Value};
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::process::Child;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::sync::Arc;
 use tokio::net::TcpListener;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use tokio::sync::RwLock;
 
 const TAURI_OPTIONS: &str = "tauri:options";
 
 type ResponseBody = Either<Full<Bytes>, Incoming>;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TauriOptions {
     application: PathBuf,
     #[serde(default)]
     args: Vec<String>,
-    #[cfg(target_os = "windows")]
-    #[serde(default)]
-    webview_options: Option<Value>,
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 impl TauriOptions {
-    #[cfg(target_os = "linux")]
     fn into_native_object(self) -> Map<String, Value> {
         let mut map = Map::new();
         map.insert(
@@ -59,29 +55,9 @@ impl TauriOptions {
         );
         map
     }
-
-    #[cfg(target_os = "windows")]
-    fn into_native_object(self) -> Map<String, Value> {
-        let mut ms_edge_options = Map::new();
-        ms_edge_options.insert(
-            "binary".into(),
-            json!(self.application.with_extension("exe")),
-        );
-        ms_edge_options.insert("args".into(), self.args.into());
-
-        if let Some(webview_options) = self.webview_options {
-            ms_edge_options.insert("webviewOptions".into(), webview_options);
-        }
-
-        let mut map = Map::new();
-        map.insert("ms:edgeChromium".into(), json!(true));
-        map.insert("browserName".into(), json!("webview2"));
-        map.insert("ms:edgeOptions".into(), ms_edge_options.into());
-        map
-    }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 async fn handle(
     client: Client<HttpConnector, Full<Bytes>>,
     req: Request<Incoming>,
@@ -118,7 +94,7 @@ async fn handle(
 }
 
 /// Transform the request to a request for the native webdriver server.
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 fn forward_to_native_driver(
     mut req: Request<Full<Bytes>>,
     args: Args,
@@ -149,7 +125,7 @@ fn forward_to_native_driver(
 }
 
 /// only happy path for now, no errors
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 fn map_capabilities(mut json: Value) -> Value {
     let mut native = None;
     if let Some(capabilities) = json.get_mut("capabilities") {
@@ -180,7 +156,7 @@ fn map_capabilities(mut json: Value) -> Value {
     json
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
     #[cfg(unix)]
@@ -260,16 +236,16 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
 }
 
 // ============================================================================
-// Plugin Mode (macOS only)
+// Plugin Mode (macOS and Windows)
 // ============================================================================
 
 /// State for plugin mode - tracks the running Tauri app process
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 struct PluginState {
     app_process: Option<Child>,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 impl PluginState {
     fn new() -> Self {
         Self { app_process: None }
@@ -277,7 +253,7 @@ impl PluginState {
 }
 
 /// Handle requests in plugin mode
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 async fn handle_plugin(
     client: Client<HttpConnector, Full<Bytes>>,
     req: Request<Incoming>,
@@ -376,7 +352,7 @@ async fn handle_plugin(
 }
 
 /// Extract app path from tauri:options in capabilities
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn extract_app_path(json: &Value) -> Option<PathBuf> {
     let capabilities = json.get("capabilities")?;
     let always_match = capabilities.get("alwaysMatch")?;
@@ -386,7 +362,7 @@ fn extract_app_path(json: &Value) -> Option<PathBuf> {
 }
 
 /// Forward request to the plugin server
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn forward_to_plugin(
     mut req: Request<Full<Bytes>>,
     args: &Args,
@@ -417,7 +393,7 @@ fn forward_to_plugin(
 }
 
 /// Wait for the plugin server to be ready
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 async fn wait_for_plugin(host: &str, port: u16, timeout_secs: u64) -> bool {
     let client: Client<HttpConnector, Full<Bytes>> =
         Client::builder(TokioExecutor::new()).build_http();
@@ -447,7 +423,7 @@ async fn wait_for_plugin(host: &str, port: u16, timeout_secs: u64) -> bool {
 }
 
 /// Build a W3C WebDriver error response
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn error_response(error: &str, message: &str) -> Response<ResponseBody> {
     let body = json!({
       "value": {
@@ -464,35 +440,55 @@ fn error_response(error: &str, message: &str) -> Response<ResponseBody> {
         .unwrap()
 }
 
-/// Run the server in plugin mode (macOS only)
-#[cfg(target_os = "macos")]
+/// Run the server in plugin mode (macOS and Windows)
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run_plugin_mode(args: Args) -> Result<(), Error> {
-    use futures_util::StreamExt;
-    use signal_hook::consts::signal::*;
-
-    let signals = signal_hook_tokio::Signals::new([SIGTERM, SIGINT, SIGQUIT])?;
-    let signals_handle = signals.handle();
-
     let state = Arc::new(RwLock::new(PluginState::new()));
-    let state_for_signal = state.clone();
 
-    let signals_task = tokio::spawn(async move {
-        let mut signals = signals.fuse();
-        while let Some(signal) = signals.next().await {
-            match signal {
-                SIGTERM | SIGINT | SIGQUIT => {
-                    // Kill the app process if running
-                    let mut state = state_for_signal.write().await;
-                    if let Some(ref mut proc) = state.app_process {
-                        let _ = proc.kill();
+    // Set up signal handling
+    #[cfg(unix)]
+    let (signals_handle, signals_task) = {
+        use futures_util::StreamExt;
+        use signal_hook::consts::signal::*;
+
+        let signals = signal_hook_tokio::Signals::new([SIGTERM, SIGINT, SIGQUIT])?;
+        let signals_handle = signals.handle();
+        let state_for_signal = state.clone();
+
+        let signals_task = tokio::spawn(async move {
+            let mut signals = signals.fuse();
+            while let Some(signal) = signals.next().await {
+                match signal {
+                    SIGTERM | SIGINT | SIGQUIT => {
+                        // Kill the app process if running
+                        let mut state = state_for_signal.write().await;
+                        if let Some(ref mut proc) = state.app_process {
+                            let _ = proc.kill();
+                        }
+                        std::process::exit(0);
                     }
-                    std::process::exit(0);
+                    _ => unreachable!(),
                 }
-                _ => unreachable!(),
             }
-        }
-    });
+        });
+        (signals_handle, signals_task)
+    };
+
+    #[cfg(windows)]
+    let ctrl_c_task = {
+        let state_for_signal = state.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                // Kill the app process if running
+                let mut state = state_for_signal.write().await;
+                if let Some(ref mut proc) = state.app_process {
+                    let _ = proc.kill();
+                }
+                std::process::exit(0);
+            }
+        })
+    };
 
     let address = std::net::SocketAddr::from(([127, 0, 0, 1], args.port));
 
@@ -546,8 +542,16 @@ pub async fn run_plugin_mode(args: Args) -> Result<(), Error> {
     };
     srv.await;
 
-    signals_handle.close();
-    signals_task.await?;
+    #[cfg(unix)]
+    {
+        signals_handle.close();
+        signals_task.await?;
+    }
+
+    #[cfg(windows)]
+    {
+        ctrl_c_task.abort();
+    }
 
     Ok(())
 }

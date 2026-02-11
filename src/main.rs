@@ -38,8 +38,8 @@ fn main() {
         job
     };
 
-    // macOS uses plugin mode exclusively - the plugin runs inside the Tauri app
-    #[cfg(target_os = "macos")]
+    // macOS and Windows use plugin mode - the plugin runs inside the Tauri app
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         if let Err(e) = server::run_plugin_mode(args) {
             eprintln!("error while running server: {e}");
@@ -48,8 +48,8 @@ fn main() {
         return;
     }
 
-    // Linux/Windows: start the native webdriver on the port specified in args
-    #[cfg(not(target_os = "macos"))]
+    // Linux: start the native webdriver on the port specified in args
+    #[cfg(target_os = "linux")]
     {
         let mut driver = webdriver::native(&args);
         let driver = driver
