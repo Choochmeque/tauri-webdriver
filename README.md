@@ -3,7 +3,7 @@
 Cross-platform WebDriver server for Tauri applications.
 
 > Fork of the [official tauri-driver](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-driver)
-> with added macOS and Windows support via [tauri-plugin-webdriver].
+> with added macOS, Windows, and Linux support via [tauri-plugin-webdriver].
 
 This is a [WebDriver Intermediary Node] that wraps the native WebDriver server
 for platforms that [Tauri] supports. Your WebDriver client will connect to the
@@ -17,7 +17,7 @@ ports to be used since two distinct [WebDriver Remote Ends] run.
 |----------|-------------------|
 | **macOS** | [tauri-plugin-webdriver] (embedded in app) |
 | **Windows** | [tauri-plugin-webdriver] (embedded in app) |
-| **Linux** | [WebKitWebDriver] |
+| **Linux** | [tauri-plugin-webdriver] (embedded in app) |
 
 ## Installation
 
@@ -28,16 +28,15 @@ cargo install tauri-driver --locked
 ## Command Line Options
 
 - `--port` (default: `4444`) - Port for tauri-driver to listen on
-- `--native-port` (default: `4445`) - Port of the plugin or native WebDriver
-- `--native-host` (default: `127.0.0.1`) - Host of the plugin or native WebDriver
-- `--native-driver` (Linux only) - Path to native WebDriver binary
+- `--native-port` (default: `4445`) - Port of the plugin WebDriver
+- `--native-host` (default: `127.0.0.1`) - Host of the plugin WebDriver
 
-## macOS & Windows Setup
+## Setup
 
-On macOS and Windows, `tauri-driver` works with [tauri-plugin-webdriver], which
+On all platforms, `tauri-driver` works with [tauri-plugin-webdriver], which
 embeds a W3C WebDriver server directly inside your Tauri application. This provides
-native WebView control (WKWebView on macOS, WebView2 on Windows) without external
-dependencies.
+native WebView control (WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux)
+without external dependencies.
 
 ### 1. Add the Plugin to Your Tauri App
 
@@ -94,6 +93,17 @@ Configure your WebDriver client to connect to `localhost:4444` with
     }
   }
 }
+
+// Linux
+{
+  "capabilities": {
+    "alwaysMatch": {
+      "tauri:options": {
+        "application": "/path/to/your-app"
+      }
+    }
+  }
+}
 ```
 
 When a session is created, `tauri-driver` will:
@@ -101,20 +111,6 @@ When a session is created, `tauri-driver` will:
 2. Wait for the plugin's HTTP server to be ready
 3. Proxy all WebDriver requests to the plugin
 4. Terminate the app when the session is deleted
-
-## Linux Setup
-
-On Linux, `tauri-driver` proxies requests to WebKitWebDriver.
-
-Install WebKitWebDriver (usually included with WebKitGTK):
-
-```sh
-# Ubuntu/Debian
-sudo apt install webkit2gtk-driver
-
-# Fedora
-sudo dnf install webkit2gtk3-devel
-```
 
 ## WebDriverIO Example
 
@@ -156,6 +152,5 @@ https://tauri.app/develop/tests/webdriver/
 
 [WebDriver Intermediary Node]: https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes
 [WebDriver Remote Ends]: https://www.w3.org/TR/webdriver/#dfn-remote-ends
-[WebKitWebDriver]: https://webkitgtk.org/reference/webkit2gtk/stable/class.WebView.html
 [tauri-plugin-webdriver]: https://github.com/Choochmeque/tauri-plugin-webdriver
 [Tauri]: https://github.com/tauri-apps/tauri
