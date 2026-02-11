@@ -87,7 +87,7 @@ async fn handle_plugin(
                 Err(e) => {
                     return Ok(error_response(
                         "session not created",
-                        &format!("Failed to launch Tauri app: {}", e),
+                        &format!("Failed to launch Tauri app: {e}"),
                     ));
                 }
             }
@@ -105,7 +105,7 @@ async fn handle_plugin(
     }
 
     // Check if this is a session deletion request
-    let is_session_delete = req.method() == &Method::DELETE && {
+    let is_session_delete = req.method() == Method::DELETE && {
         let path = req.uri().path();
         let parts: Vec<&str> = path.split('/').collect();
         parts.len() == 3 && path.starts_with("/session/")
@@ -179,7 +179,7 @@ async fn wait_for_plugin(host: &str, port: u16, timeout_secs: u64) -> bool {
         Client::builder(TokioExecutor::new()).build_http();
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
-    let uri: hyper::Uri = format!("http://{}:{}/status", host, port)
+    let uri: hyper::Uri = format!("http://{host}:{port}/status")
         .parse()
         .expect("valid uri");
 
@@ -187,7 +187,7 @@ async fn wait_for_plugin(host: &str, port: u16, timeout_secs: u64) -> bool {
         let req = Request::builder()
             .method(Method::GET)
             .uri(uri.clone())
-            .header("Host", format!("{}:{}", host, port))
+            .header("Host", format!("{host}:{port}"))
             .body(Full::new(Bytes::new()));
 
         if let Ok(req) = req {
@@ -202,7 +202,7 @@ async fn wait_for_plugin(host: &str, port: u16, timeout_secs: u64) -> bool {
     false
 }
 
-/// Build a W3C WebDriver error response
+/// Build a W3C `WebDriver` error response
 fn error_response(error: &str, message: &str) -> Response<ResponseBody> {
     let body = json!({
       "value": {
@@ -210,13 +210,13 @@ fn error_response(error: &str, message: &str) -> Response<ResponseBody> {
         "message": message
       }
     });
-    let bytes = serde_json::to_vec(&body).unwrap();
+    let bytes = serde_json::to_vec(&body).unwrap_or_else(|_| b"internal error".to_vec());
     Response::builder()
         .status(500)
         .header("Content-Type", "application/json; charset=utf-8")
         .header(CONTENT_LENGTH, bytes.len())
         .body(Either::Left(Full::new(bytes.into())))
-        .unwrap()
+        .unwrap_or_else(|_| Response::new(Either::Left(Full::new(Bytes::from("internal error")))))
 }
 
 /// Run the server in plugin mode
@@ -228,7 +228,7 @@ pub async fn run_plugin_mode(args: Args) -> Result<(), Error> {
     #[cfg(unix)]
     let (signals_handle, signals_task) = {
         use futures_util::StreamExt;
-        use signal_hook::consts::signal::*;
+        use signal_hook::consts::signal::{SIGINT, SIGQUIT, SIGTERM};
 
         let signals = signal_hook_tokio::Signals::new([SIGTERM, SIGINT, SIGQUIT])?;
         let signals_handle = signals.handle();
@@ -236,18 +236,14 @@ pub async fn run_plugin_mode(args: Args) -> Result<(), Error> {
 
         let signals_task = tokio::spawn(async move {
             let mut signals = signals.fuse();
-            while let Some(signal) = signals.next().await {
-                match signal {
-                    SIGTERM | SIGINT | SIGQUIT => {
-                        // Kill the app process if running
-                        let mut state = state_for_signal.write().await;
-                        if let Some(ref mut proc) = state.app_process {
-                            let _ = proc.kill();
-                        }
-                        std::process::exit(0);
-                    }
-                    _ => unreachable!(),
+            // Wait for any termination signal
+            if signals.next().await.is_some() {
+                // Kill the app process if running
+                let mut state = state_for_signal.write().await;
+                if let Some(ref mut proc) = state.app_process {
+                    let _ = proc.kill();
                 }
+                std::process::exit(0);
             }
         });
         (signals_handle, signals_task)

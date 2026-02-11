@@ -1,6 +1,6 @@
-//! Cross-platform WebDriver server for Tauri applications.
+//! Cross-platform `WebDriver` server for Tauri applications.
 //!
-//! This is a [WebDriver Intermediary Node](https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes) that works with [tauri-plugin-webdriver](https://github.com/Choochmeque/tauri-plugin-webdriver) to provide WebDriver automation for [Tauri](https://github.com/tauri-apps/tauri) apps. Your WebDriver client connects to `tauri-webdriver`, which launches your Tauri app and proxies requests to the embedded plugin. It requires two separate ports since two distinct [WebDriver Remote Ends](https://www.w3.org/TR/webdriver/#dfn-remote-ends) run.
+//! This is a [`WebDriver` Intermediary Node](https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes) that works with [tauri-plugin-webdriver](https://github.com/Choochmeque/tauri-plugin-webdriver) to provide `WebDriver` automation for [Tauri](https://github.com/tauri-apps/tauri) apps. Your `WebDriver` client connects to `tauri-webdriver`, which launches your Tauri app and proxies requests to the embedded plugin. It requires two separate ports since two distinct [`WebDriver` Remote Ends](https://www.w3.org/TR/webdriver/#dfn-remote-ends) run.
 
 #![doc(
     html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
