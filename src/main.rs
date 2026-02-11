@@ -15,8 +15,6 @@
 mod cli;
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
 mod server;
-#[cfg(any(target_os = "linux", target_os = "macos", windows))]
-mod webdriver;
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
 fn main() {
@@ -38,28 +36,9 @@ fn main() {
         job
     };
 
-    // macOS and Windows use plugin mode - the plugin runs inside the Tauri app
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    {
-        if let Err(e) = server::run_plugin_mode(args) {
-            eprintln!("error while running server: {e}");
-            std::process::exit(1);
-        }
-        return;
-    }
-
-    // Linux: start the native webdriver on the port specified in args
-    #[cfg(target_os = "linux")]
-    {
-        let mut driver = webdriver::native(&args);
-        let driver = driver
-            .spawn()
-            .expect("error while running native webdriver");
-
-        // start our webdriver intermediary node
-        if let Err(e) = server::run(args, driver) {
-            eprintln!("error while running server: {e}");
-            std::process::exit(1);
-        }
+    // All platforms use plugin mode - the plugin runs inside the Tauri app
+    if let Err(e) = server::run_plugin_mode(args) {
+        eprintln!("error while running server: {e}");
+        std::process::exit(1);
     }
 }
