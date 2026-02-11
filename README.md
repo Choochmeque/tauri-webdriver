@@ -3,7 +3,7 @@
 Cross-platform WebDriver server for Tauri applications.
 
 > Fork of the [official tauri-driver](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-driver)
-> with added macOS support via WebDriverAgentMac.
+> with added macOS support via [tauri-plugin-webdriver].
 
 This is a [WebDriver Intermediary Node] that wraps the native WebDriver server
 for platforms that [Tauri] supports. Your WebDriver client will connect to the
@@ -11,56 +11,65 @@ running `tauri-driver` server, and `tauri-driver` will handle starting the
 native WebDriver server for you behind the scenes. It requires two separate
 ports to be used since two distinct [WebDriver Remote Ends] run.
 
-You can configure the ports used with arguments when starting the binary:
+## Supported Platforms
 
-- `--port` (default: `4444`)
-- `--native-port` (default: `4445`)
-- `--native-host` (default: `127.0.0.1`)
-- `--native-driver` (optional on Linux/Windows, required on macOS)
-
-Supported platforms:
-
-- **Linux** via `WebKitWebDriver`
-- **Windows** via [Microsoft Edge Driver]
-- **macOS** via [WebDriverAgentMac] (from [Appium Mac2 Driver])
+| Platform | WebDriver Backend |
+|----------|-------------------|
+| **Linux** | [WebKitWebDriver] |
+| **Windows** | [Microsoft Edge Driver] |
+| **macOS** | [tauri-plugin-webdriver] (embedded in app) |
 
 ## Installation
-
-You can install tauri-driver using Cargo:
 
 ```sh
 cargo install tauri-driver --locked
 ```
 
+## Command Line Options
+
+- `--port` (default: `4444`) - Port for tauri-driver to listen on
+- `--native-port` (default: `4445`) - Port of the native WebDriver backend
+- `--native-host` (default: `127.0.0.1`) - Host of the native WebDriver backend
+- `--native-driver` (Linux/Windows only) - Path to native WebDriver binary
+
 ## macOS Setup
 
-macOS support uses [WebDriverAgentMac], an XCUITest-based WebDriver server that
-automates native macOS UI via accessibility APIs.
+On macOS, `tauri-driver` works with [tauri-plugin-webdriver], which embeds a
+W3C WebDriver server directly inside your Tauri application. This provides
+native WKWebView control without external dependencies.
 
-### Prerequisites
-
-1. macOS 11+, Xcode 13+
-2. Clone the WebDriverAgentMac project:
-   ```sh
-   git clone https://github.com/appium/appium-mac2-driver.git
-   ```
-3. Grant Accessibility permission to Xcode Helper
-   (System Settings > Privacy & Security > Accessibility)
-
-### Usage
-
-Point `--native-driver` to the WebDriverAgentMac project directory:
+### 1. Add the Plugin to Your Tauri App
 
 ```sh
-tauri-driver --native-driver /path/to/appium-mac2-driver/WebDriverAgentMac
+cargo add tauri-plugin-webdriver
 ```
 
-`tauri-driver` will run `xcodebuild` to build and launch the WebDriverAgent
-test runner, then proxy WebDriver requests between your test client and WDA.
+```rust
+// src-tauri/src/main.rs
+fn main() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_webdriver::init())
+        .run(tauri::generate_context!())
+        .expect("error running app");
+}
+```
 
-### Capabilities
+### 2. Build Your App
 
-Use `tauri:options` in your WebDriver capabilities, same as on other platforms:
+```sh
+cargo tauri build
+```
+
+### 3. Run Tests
+
+Start `tauri-driver`:
+
+```sh
+tauri-driver
+```
+
+Configure your WebDriver client to connect to `localhost:4444` with
+`tauri:options` pointing to your app binary:
 
 ```json
 {
@@ -74,27 +83,75 @@ Use `tauri:options` in your WebDriver capabilities, same as on other platforms:
 }
 ```
 
-`tauri-driver` will automatically:
+When a session is created, `tauri-driver` will:
+1. Launch your Tauri app with WebDriver automation enabled
+2. Wait for the plugin's HTTP server to be ready
+3. Proxy all WebDriver requests to the plugin
+4. Terminate the app when the session is deleted
 
-- Resolve the `.app` bundle path from the binary path
-- Read the `CFBundleIdentifier` from `Info.plist`
-- Translate `tauri:options` to WDA-native capabilities (`bundleId`,
-  `arguments`, `environment`)
-- Set `TAURI_WEBVIEW_AUTOMATION=true` and `TAURI_AUTOMATION=true` environment
-  variables for the launched app
-- Translate Appium-style locator strategies (`-ios predicate string` to
-  `predicate string`, `-ios class chain` to `class chain`)
-- Stub W3C WebDriver endpoints that WDA doesn't implement (window handles,
-  title, url)
+## Linux/Windows Setup
 
-## Trying it out
+On Linux and Windows, `tauri-driver` proxies requests to the platform's native
+WebDriver server.
 
-Check out the documentation at https://tauri.app/develop/tests/webdriver/,
-including a small example application with WebDriver tests.
+### Linux
+
+Install WebKitWebDriver (usually included with WebKitGTK):
+
+```sh
+# Ubuntu/Debian
+sudo apt install webkit2gtk-driver
+
+# Fedora
+sudo dnf install webkit2gtk3-devel
+```
+
+### Windows
+
+Download [Microsoft Edge Driver] and ensure it's in your PATH, or specify the
+path with `--native-driver`.
+
+## WebDriverIO Example
+
+```typescript
+// wdio.conf.ts
+export const config = {
+  runner: 'local',
+  specs: ['./test/**/*.ts'],
+  capabilities: [{
+    'tauri:options': {
+      application: './src-tauri/target/release/bundle/macos/YourApp.app/Contents/MacOS/YourApp'
+    }
+  }],
+  hostname: 'localhost',
+  port: 4444,
+  path: '/'
+}
+```
+
+```typescript
+// test/example.ts
+describe('Tauri App', () => {
+  it('should load the page', async () => {
+    const title = await browser.getTitle()
+    expect(title).toBe('My Tauri App')
+  })
+
+  it('should find elements', async () => {
+    const button = await $('button#submit')
+    await button.click()
+  })
+})
+```
+
+## Documentation
+
+For more details, see the Tauri WebDriver documentation:
+https://tauri.app/develop/tests/webdriver/
 
 [WebDriver Intermediary Node]: https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes
 [WebDriver Remote Ends]: https://www.w3.org/TR/webdriver/#dfn-remote-ends
 [Microsoft Edge Driver]: https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
-[WebDriverAgentMac]: https://github.com/appium/appium-mac2-driver/tree/master/WebDriverAgentMac
-[Appium Mac2 Driver]: https://github.com/appium/appium-mac2-driver
+[WebKitWebDriver]: https://webkitgtk.org/reference/webkit2gtk/stable/class.WebView.html
+[tauri-plugin-webdriver]: https://github.com/Choochmeque/tauri-plugin-webdriver
 [Tauri]: https://github.com/tauri-apps/tauri
