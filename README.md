@@ -1,5 +1,8 @@
 # `tauri-webdriver`
 
+[![Crates.io](https://img.shields.io/crates/v/tauri-webdriver.svg)](https://crates.io/crates/tauri-webdriver)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Cross-platform WebDriver server for Tauri applications.
 
 This is a [WebDriver Intermediary Node] that works with [tauri-plugin-webdriver]
