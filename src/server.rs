@@ -54,10 +54,12 @@ async fn handle_plugin(
         // Extract tauri:options to get app path and args
         let (app_path, app_args) = match extract_app_path_and_args(&json) {
             Some(res) => res,
-            None => return Ok(error_response(
-                "session not created",
-                "Missing tauri:options.application",
-            )) ,
+            None => {
+                return Ok(error_response(
+                    "session not created",
+                    "Missing tauri:options.application",
+                ))
+            }
         };
 
         if !app_path.as_os_str().is_empty() {
