@@ -51,15 +51,10 @@ async fn handle_plugin(
         let body = body.collect().await?.to_bytes().to_vec();
         let json: Value = serde_json::from_slice(&body)?;
 
-        // Extract tauri:options to get app path and args
-        let Some((app_path, app_args)) = extract_app_path_and_args(&json) else {
-            return Ok(error_response(
-                "session not created",
-                "Missing tauri:options.application",
-            ));
-        };
+        // Extract tauri:options to get app path
+        let app_path = extract_app_path(&json);
 
-        if !app_path.as_os_str().is_empty() {
+        if let Some(app_path) = app_path {
             // Launch the Tauri app
             let mut state = state.write().await;
             if state.app_process.is_some() {
@@ -69,11 +64,10 @@ async fn handle_plugin(
                 }
             }
 
-            let mut cmd = std::process::Command::new(&app_path);
-            cmd.env("TAURI_AUTOMATION", "true")
+            let child = std::process::Command::new(&app_path)
+                .env("TAURI_AUTOMATION", "true")
                 .env("TAURI_WEBVIEW_AUTOMATION", "true")
-                .args(&app_args);
-            let child = cmd.spawn();
+                .spawn();
 
             match child {
                 Ok(proc) => {
@@ -141,21 +135,12 @@ async fn handle_plugin(
 }
 
 /// Extract app path from tauri:options in capabilities
-fn extract_app_path_and_args(json: &Value) -> Option<(PathBuf, Vec<String>)> {
+fn extract_app_path(json: &Value) -> Option<PathBuf> {
     let capabilities = json.get("capabilities")?;
     let always_match = capabilities.get("alwaysMatch")?;
     let tauri_options = always_match.get(TAURI_OPTIONS)?;
     let application = tauri_options.get("application")?.as_str()?;
-    let args = tauri_options
-        .get("args")
-        .and_then(|v| v.as_array())
-        .map_or_else(Vec::new, |arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(std::string::ToString::to_string)
-                .collect()
-        });
-    Some((PathBuf::from(application), args))
+    Some(PathBuf::from(application))
 }
 
 /// Forward request to the plugin server
