@@ -69,7 +69,7 @@ tauri-webdriver
 ```
 
 Configure your WebDriver client to connect to `localhost:4444` with
-`tauri:options` pointing to your app binary:
+`tauri:options` pointing to your app binary and optional arguments with `args`:
 
 ```json
 // macOS
@@ -77,7 +77,8 @@ Configure your WebDriver client to connect to `localhost:4444` with
   "capabilities": {
     "alwaysMatch": {
       "tauri:options": {
-        "application": "/path/to/YourApp.app/Contents/MacOS/YourApp"
+        "application": "/path/to/YourApp.app/Contents/MacOS/YourApp",
+        "args": ["--optional-field", "--another-arg"]
       }
     }
   }
@@ -88,7 +89,8 @@ Configure your WebDriver client to connect to `localhost:4444` with
   "capabilities": {
     "alwaysMatch": {
       "tauri:options": {
-        "application": "C:\\path\\to\\YourApp.exe"
+        "application": "C:\\path\\to\\YourApp.exe",
+        "args": ["--optional-field", "--another-arg"]
       }
     }
   }
@@ -99,7 +101,8 @@ Configure your WebDriver client to connect to `localhost:4444` with
   "capabilities": {
     "alwaysMatch": {
       "tauri:options": {
-        "application": "/path/to/your-app"
+        "application": "/path/to/your-app",
+        "args": ["--optional-field", "--another-arg"]
       }
     }
   }
@@ -107,6 +110,7 @@ Configure your WebDriver client to connect to `localhost:4444` with
 ```
 
 When a session is created, `tauri-webdriver` will:
+
 1. Launch your Tauri app with WebDriver automation enabled
 2. Wait for the plugin's HTTP server to be ready
 3. Proxy all WebDriver requests to the plugin
