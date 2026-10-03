@@ -325,9 +325,8 @@ pub async fn run_plugin_mode(args: Args) -> Result<(), Error> {
                     println!("accept new stream fail, ignore here");
                 }
             }
-        } else {
-            println!("can not listen to address: {address:?}");
         }
+        println!("can not listen to address: {address:?}");
     };
     srv.await;
 
